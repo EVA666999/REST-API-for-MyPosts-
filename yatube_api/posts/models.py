@@ -9,6 +9,10 @@ class Group(models.Model):
     slug = models.SlugField(unique=True, max_length=50)
     description = models.TextField()
 
+    class Meta:
+        verbose_name = "Группа"
+        verbose_name_plural = "Группы"
+
     def __str__(self):
         return self.title
 
@@ -26,6 +30,10 @@ class Post(models.Model):
     image = models.ImageField(upload_to="post/images/",
                               null=True, default=None)
 
+    class Meta:
+        verbose_name = "Пост"
+        verbose_name_plural = "Посты"
+
     def __str__(self):
         return self.text
 
@@ -38,6 +46,13 @@ class Comment(models.Model):
     text = models.TextField()
     created = models.DateTimeField("Дата добавления",
                                    auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = "Комментарий"
+        verbose_name_plural = "Комментарии"
+
+    def __str__(self):
+        return self.author, self.text
 
 
 class Follow(models.Model):
@@ -62,6 +77,8 @@ class Follow(models.Model):
                 name="unique_follow",
             )
         ]
+        verbose_name = "Подписчик"
+        verbose_name_plural = "Подписчики"
 
     def __str__(self):
         return self.user, self.following

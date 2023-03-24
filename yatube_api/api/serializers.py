@@ -1,42 +1,14 @@
-import base64
 
-from django.core.files.base import ContentFile
+
 from posts.models import Comment, Follow, Group, Post, User
 from rest_framework import serializers
-
-
-class Base64ImageField(serializers.ImageField):
-    def to_internal_value(self, data):
-        # Если полученный объект строка, и эта строка
-        # начинается с 'data:image'...
-        if isinstance(data, str) and data.startswith("data:image"):
-            # ...начинаем декодировать изображение из base64.
-            # Сначала нужно разделить строку на части.
-            format, imgstr = data.split(";base64,")
-            # И извлечь расширение файла.
-            ext = format.split("/")[-1]
-            # Затем декодировать сами данные и поместить результат в файл,
-            # которому дать название по шаблону.
-            data = ContentFile(base64.b64decode(imgstr), name="temp." + ext)
-
-        return super().to_internal_value(data)
-
-
-class PostListSerializer(serializers.ModelSerializer):
-    author = serializers.SlugRelatedField(slug_field="username",
-                                          read_only=True)
-    image = Base64ImageField(required=False, allow_null=True)
-
-    class Meta:
-        model = Post
-        fields = "__all__"
-        many = True
+from rest_framework.validators import UniqueTogetherValidator
 
 
 class PostSerializer(serializers.ModelSerializer):
     author = serializers.SlugRelatedField(slug_field="username",
                                           read_only=True)
-    image = Base64ImageField(required=False, allow_null=True)
+    image = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         fields = "__all__"
@@ -72,6 +44,12 @@ class FollowSerializer(serializers.ModelSerializer):
     class Meta:
         model = Follow
         exclude = ("id",)
+        validators = [
+            UniqueTogetherValidator(
+                queryset=Follow.objects.all(),
+                fields=['user', 'following']
+            )
+        ]
 
     def validate(self, data):
         if data["user"] == data["following"]:

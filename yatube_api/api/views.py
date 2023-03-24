@@ -1,17 +1,15 @@
-from api.serializers import (
-    CommentsSerializer,
-    FollowSerializer,
-    GroupSerializer,
-    PostListSerializer,
-    PostSerializer,
-)
-from posts.models import Comment, Follow, Group, Post
-from rest_framework import mixins, viewsets
+from rest_framework.exceptions import NotAuthenticated
 from rest_framework.filters import SearchFilter
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated
+from rest_framework import viewsets
 
-from .permissions import IsAuthorOrReadOnlyPermission, ReadOnly
+from api.serializers import (
+    CommentsSerializer, FollowSerializer, GroupSerializer, PostSerializer
+)
+from posts.models import Comment, Follow, Group, Post
+from .permissions import IsAuthorOrReadOnlyPermission
+from .GenericViewSet import CreateOrList
 
 
 class PostViewSet(viewsets.ModelViewSet):
@@ -21,17 +19,11 @@ class PostViewSet(viewsets.ModelViewSet):
     pagination_class = LimitOffsetPagination
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
-
-    def get_permissions(self):
-        if self.action == "retrieve":
-            return (ReadOnly(),)
-        return super().get_permissions()
-
-    def get_serializer_class(self):
-        if self.action == "list":
-            return PostListSerializer
-        return PostSerializer
+        if self.request.user.is_authenticated:
+            serializer.save(author=self.request.user)
+        else:
+            raise NotAuthenticated(
+                "Действие доступно только аторизированным пользователям!")
 
 
 class CommentViewSet(viewsets.ModelViewSet):
@@ -45,12 +37,11 @@ class CommentViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         post_id = self.kwargs.get("post_id")
-        serializer.save(post_id=post_id, author=self.request.user)
-
-    def get_permissions(self):
-        if self.action == "retrieve":
-            return (ReadOnly(),)
-        return super().get_permissions()
+        if self.request.user.is_authenticated:
+            serializer.save(post_id=post_id, author=self.request.user)
+        else:
+            raise NotAuthenticated(
+                "Действие доступно только аторизированным пользователям!")
 
 
 class GroupViewSet(viewsets.ReadOnlyModelViewSet):
@@ -58,14 +49,9 @@ class GroupViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = GroupSerializer
     permission_classes = (IsAuthorOrReadOnlyPermission,)
 
-    def get_permissions(self):
-        if self.action == "retrieve":
-            return (ReadOnly(),)
-        return super().get_permissions()
-
 
 class FollowViewSet(
-    mixins.CreateModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet
+    CreateOrList
 ):
     queryset = Follow.objects.all()
     serializer_class = FollowSerializer
@@ -79,4 +65,4 @@ class FollowViewSet(
 
     def get_queryset(self):
         user = self.request.user
-        return Follow.objects.filter(user=user)
+        return user.follower.all()
